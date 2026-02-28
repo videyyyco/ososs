@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Video Player</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    .video-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 720px;
+      background: #0a0a0a;
+      border-radius: 0;
+      overflow: hidden;
+      box-shadow: 0 0 20px rgba(0,0,0,0.8);
+    }
+    
+    video {
+      width: 100%;
+      height: auto;
+      display: block;
+      background: #000;
+      aspect-ratio: 16/9;
+      object-fit: contain;
+    }
+    
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    
+    .btn-ads {
+      background: #d32f2f;
+      color: white;
+      font-size: 1.8rem;
+      font-weight: 800;
+      padding: 20px 40px;
+      border-radius: 60px;
+      border: 4px solid #fff;
+      box-shadow: 0 0 30px #ff5252;
+      text-transform: uppercase;
+      text-align: center;
+      line-height: 1.3;
+      letter-spacing: 2px;
+      animation: pulse 1.2s infinite ease-in-out;
+      max-width: 90%;
+      word-break: break-word;
+    }
+    
+    .btn-ads span {
+      display: block;
+      font-size: 1.1rem;
+      font-weight: 400;
+      letter-spacing: 1px;
+      opacity: 0.9;
+      margin-top: 8px;
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(1); box-shadow: 0 0 20px #ff1744; }
+      50% { transform: scale(1.05); box-shadow: 0 0 45px #ff0000; }
+      100% { transform: scale(1); box-shadow: 0 0 20px #ff1744; }
+    }
+    
+    .watermark {
+      position: absolute;
+      bottom: 10px;
+      right: 15px;
+      color: rgba(255,255,255,0.25);
+      font-size: 12px;
+      z-index: 10;
+      background: rgba(0,0,0,0.3);
+      padding: 4px 12px;
+      border-radius: 30px;
+      pointer-events: none;
+      backdrop-filter: blur(2px);
+    }
+    
+    /* Fallback untuk WA Webview */
+    @media (max-width: 480px) {
+      .btn-ads {
+        font-size: 1.5rem;
+        padding: 16px 30px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="video-wrapper" id="videoWrapper">
+  <video id="videoPlayer" controls playsinline preload="metadata" disablePictureInPicture>
+    <source src="https://cdn.videy.co/NTckHOeh1.mp4" type="video/mp4">
+    <!-- Fallback text -->
+    Browser Anda tidak mendukung video.
+  </video>
+  <div class="watermark"></div>
+</div>
+
+<script>
+(function() {
+  // ===== KONFIGURASI IKLAN (PASTIKAN HTTPS) =====
+  const ADS = [
+    "https://s.shopee.co.id/6fc6vW8K6n",           // Iklan 1
+    "https://lt.wetterdefames.com/iZ4nvucmsWlZD5QA0/136673"  // Iklan 2
+  ];
+
+  // ===== STATE =====
+  let ad1Clicked = false;
+  let ad2Clicked = false;
+  
+  let isLocked = false;
+  let overlay = null;
+  let checkInterval = null;
+  
+  const video = document.getElementById('videoPlayer');
+  const wrapper = document.getElementById('videoWrapper');
+
+  // ===== HELPER =====
+  function allAdsDone() {
+    return ad1Clicked && ad2Clicked;
+  }
+
+  function removeOverlay() {
+    if (overlay && overlay.parentNode) {
+      overlay.remove();
+      overlay = null;
+    }
+  }
+
+  // ===== TAMPIL OVERLAY =====
+  function showAdOverlay(link, message = '') {
+    // Jangan tampilkan jika semua sudah diklik
+    if (allAdsDone()) {
+      console.log('Semua iklan sudah diklik');
+      return false;
+    }
+    
+    // Hapus overlay lama
+    removeOverlay();
+    
+    // Pause video
+    video.pause();
+    isLocked = true;
+    
+    // Buat overlay baru
+    overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    
+    const btn = document.createElement('div');
+    btn.className = 'btn-ads';
+    btn.innerHTML = ` TAP TO CONTINUE ${message ? '<span>' + message + '</span>' : ''}`;
+    overlay.appendChild(btn);
+    
+    // Event klik overlay
+    overlay.addEventListener('click', function() {
+      // Buka link di tab baru
+      window.open(link, '_blank', 'noopener,noreferrer');
+      
+      // Update status
+      if (link === ADS[0]) {
+        ad1Clicked = true;
+        console.log('Iklan 1 diklik');
+      } else if (link === ADS[1]) {
+        ad2Clicked = true;
+        console.log('Iklan 2 diklik');
+      }
+      
+      // Hapus overlay & unlock
+      removeOverlay();
+      isLocked = false;
+      
+      // Hentikan interval jika semua selesai
+      if (allAdsDone()) {
+        if (checkInterval) {
+          clearInterval(checkInterval);
+          checkInterval = null;
+        }
+      }
+      
+      // Play video (butuh user interaction)
+      if (video.paused && !isLocked) {
+        video.play().catch(e => console.log('Gagal play:', e));
+      }
+    });
+    
+    wrapper.appendChild(overlay);
+    return true;
+  }
+
+  // ===== LISTENER DETIK KE-5 UNTUK IKLAN 2 =====
+  function activateSecondAdListener() {
+    if (allAdsDone()) return;
+    
+    // Hapus interval lama
+    if (checkInterval) {
+      clearInterval(checkInterval);
+      checkInterval = null;
+    }
+    
+    checkInterval = setInterval(() => {
+      // Cek kondisi untuk iklan 2
+      if (
+        ad1Clicked &&            // Iklan 1 sudah diklik
+        !ad2Clicked &&           // Iklan 2 belum diklik
+        !isLocked &&             // Tidak dalam keadaan terkunci
+        !video.paused &&         // Video sedang play
+        video.currentTime >= 5.0 && // Lebih dari 5 detik
+        !allAdsDone()            // Belum semua selesai
+      ) {
+        showAdOverlay(ADS[1], 'lanjutkan');
+        clearInterval(checkInterval);
+        checkInterval = null;
+      }
+    }, 200);
+  }
+
+  // ===== TAMPIL IKLAN PERTAMA =====
+  function showFirstAd() {
+    if (!allAdsDone() && !ad1Clicked && !isLocked) {
+      showAdOverlay(ADS[0], 'sebelum main');
+    }
+  }
+
+  // ===== EVENT LISTENERS =====
+  
+  // Metadata loaded
+  video.addEventListener('loadedmetadata', function() {
+    showFirstAd();
+  });
+
+  // Event play
+  video.addEventListener('play', function(e) {
+    // Jika terkunci, pause
+    if (isLocked) {
+      video.pause();
+      e.preventDefault();
+      return;
+    }
+    
+    // Jika iklan 1 belum diklik
+    if (!ad1Clicked && !allAdsDone()) {
+      video.pause();
+      showAdOverlay(ADS[0], 'klik untuk main');
+      return;
+    }
+    
+    // Jika iklan 1 sudah, iklan 2 belum
+    if (ad1Clicked && !ad2Clicked && !allAdsDone()) {
+      activateSecondAdListener();
+    }
+  });
+
+  // Event pause
+  video.addEventListener('pause', function() {
+    if (isLocked) return;
+    
+    // Hentikan interval saat pause
+    if (checkInterval) {
+      clearInterval(checkInterval);
+      checkInterval = null;
+    }
+  });
+
+  // Event seeking (jika balik ke awal)
+  video.addEventListener('seeking', function() {
+    if (video.currentTime < 0.5) {
+      if (!ad1Clicked && !allAdsDone() && !isLocked) {
+        removeOverlay();
+        showAdOverlay(ADS[0], 'mulai dari awal');
+      }
+      
+      if (ad1Clicked && !ad2Clicked && !allAdsDone()) {
+        if (checkInterval) {
+          clearInterval(checkInterval);
+          checkInterval = null;
+        }
+      }
+    }
+  });
+
+  // Event ended
+  video.addEventListener('ended', function() {
+    removeOverlay();
+    isLocked = false;
+    if (checkInterval) {
+      clearInterval(checkInterval);
+      checkInterval = null;
+    }
+  });
+
+  // Intersection Observer untuk deteksi visibilitas
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting && video.played.length > 0 && !video.paused) {
+        // Video keluar layar, pause
+        video.pause();
+      }
+    });
+  }, { threshold: 0.5 });
+  
+  observer.observe(video);
+
+  // Interval pengaman
+  setInterval(() => {
+    if (allAdsDone()) {
+      removeOverlay();
+      if (checkInterval) {
+        clearInterval(checkInterval);
+        checkInterval = null;
+      }
+      isLocked = false;
+      return;
+    }
+    
+    // Cek jika iklan 1 belum diklik dan video play
+    if (!ad1Clicked && !video.paused && !isLocked && !allAdsDone()) {
+      video.pause();
+      showAdOverlay(ADS[0], 'wajib tap');
+    }
+    
+    // Cek untuk iklan 2
+    if (ad1Clicked && !ad2Clicked && !isLocked && 
+        video.currentTime >= 5.0 && !video.paused && !allAdsDone()) {
+      showAdOverlay(ADS[1], 'lanjut');
+      if (checkInterval) clearInterval(checkInterval);
+    }
+  }, 500);
+
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', function() {
+    if (checkInterval) {
+      clearInterval(checkInterval);
+    }
+  });
+
+  // Cek jika video sudah ready
+  if (video.readyState >= 1) {
+    showFirstAd();
+  }
+  
+  // Proteksi context menu (opsional)
+  video.addEventListener('contextmenu', (e) => e.preventDefault());
+  
+  // Handle error video
+  video.addEventListener('error', function() {
+    console.log('Error loading video');
+  });
+  
+})();
+</script>
+
+<!-- Fallback jika JavaScript mati -->
+<noscript>
+  <div style="padding:20px; color:white; background:red; text-align:center;">
+    JavaScript diperlukan untuk memutar video
+  </div>
+</noscript>
+
+</body>
+</html>
